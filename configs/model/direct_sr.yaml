@@ -1,0 +1,8 @@
+name: direct_sr
+
+
+# Hyper-parameters for the Graph Transformer Block
+num_heads: 4                      # assert num_heads % n_target_nodes == 0
+edge_dim: 1
+dropout: 0.2
+beta: False

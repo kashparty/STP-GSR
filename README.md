@@ -18,6 +18,7 @@ Our code is structured as follows:
 │   ├── experiment.yaml
 │   ├── hydra.yaml
 │   └── model
+│       ├── direct_sr.yaml
 │       └── stp_gsr.yaml
 ├── main.py
 └── src
@@ -25,6 +26,7 @@ Our code is structured as follows:
     ├── dual_graph_utils.py
     ├── matrix_vectorizer.py
     ├── models
+    │   ├── direct_sr.py
     │   └── stp_gsr.py
     ├── plot_utils.py
     └── train.py
@@ -62,7 +64,7 @@ python main.py dataset='sbm' experiment.n_epochs=30 model='stp_gsr'
 4. Source, target, and predicted adjacency matrices for the valdiation data
 5. Training evolution by plotting randomly sampled source-target-predicted matrices
 
-## Dataset
+## Datasets
 We provide code to simulate source-target pairs using four differnet graph generation methods:
 1. [Erods-Renyi model](https://en.wikipedia.org/wiki/Erd%C5%91s%E2%80%93R%C3%A9nyi_model) (`er.yaml`)
 2. [Barbasi-Albert model](https://en.wikipedia.org/wiki/Barab%C3%A1si%E2%80%93Albert_model) (`ba.yaml`)
@@ -75,6 +77,17 @@ Please follow below steps to test our model with a new dataset:
 1. Add code to load your source and target matrices in the `load_dataset` function in `src/dataset.py`.
 2. Create a `<your_dataset_name>.yaml` file under `configs/dataset` for your dataset. Every `.yaml` file should at-least have three attributes: `name`, `n_source_nodes`, and `n_target_nodes`. Having separate files allow easy handling of dataset specific configurations.
 3.  Run ```python main.py dataset=<your_dataset_name>```
+
+## Models
+Apart from our STP-GSR model, we also provide code for other baseline models:
+
+1. **Direct SR**: A 2-layer graph transformer model to directy predict target adjaceny matrix from source graph. 
+
+```
+python main.py model='direct_sr'
+```
+
+TODO: Add other baselines
 
 ## References
 TODO

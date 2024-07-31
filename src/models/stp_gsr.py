@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import TransformerConv, GraphNorm
 
+from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_matrix
+
     
 class TargetEdgeInitializer(nn.Module):
     """TransformerConv based taregt edge initialization model"""
@@ -69,9 +71,12 @@ class DualGraphLearner(nn.Module):
 class STPGSR(nn.Module):
     def __init__(self, config):
         super().__init__()
+        n_source_nodes = config.dataset.n_source_nodes
+        n_target_nodes = config.dataset.n_target_nodes
+
         self.target_edge_initializer = TargetEdgeInitializer(
-                            config.dataset.n_source_nodes,
-                            config.dataset.n_target_nodes,
+                            n_source_nodes,
+                            n_target_nodes,
                             num_heads=config.model.target_edge_initializer.num_heads,
                             edge_dim=config.model.target_edge_initializer.edge_dim,
                             dropout=config.model.target_edge_initializer.dropout,
@@ -85,10 +90,18 @@ class STPGSR(nn.Module):
                             beta=config.model.dual_learner.beta
         )
 
-    def forward(self, source_data, target_dual_domain):
-        # Initialize target edges
-        target_edge_init = self.target_edge_initializer(source_data)
-        # Update target edges in the dual space 
-        dual_target_x = self.dual_learner(target_edge_init, target_dual_domain.edge_index)
+        # Create dual graph domain: Assume a fully connected simple graph
+        fully_connected_mat = torch.ones((n_target_nodes, n_target_nodes), dtype=torch.float)   # (n_t, n_t)
+        self.dual_edge_index, _ = create_dual_graph(fully_connected_mat)    # (2, n_t*(n_t-1)/2), (n_t*(n_t-1)/2, 1)
 
-        return dual_target_x
+
+    def forward(self, source_pyg, target_mat):
+        # Initialize target edges
+        target_edge_init = self.target_edge_initializer(source_pyg)
+        # Update target edges in the dual space 
+        dual_pred_x = self.dual_learner(target_edge_init, self.dual_edge_index)
+
+        # Convert target matrix into edge feature matrix
+        dual_target_x = create_dual_graph_feature_matrix(target_mat)
+
+        return dual_pred_x, dual_target_x

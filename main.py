@@ -61,7 +61,6 @@ def main(config):
                                       train_output['model'], 
                                       source_data_val, 
                                       target_data_val, 
-                                      train_output['dual_pyg'], 
                                       train_output['critereon'])
 
         # Final evaluation loss for this fold
