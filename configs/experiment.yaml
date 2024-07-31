@@ -1,0 +1,20 @@
+defaults:
+  - _self_
+  - dataset: sbm
+  - model: stp_gsr
+
+experiment:
+  n_epochs: 60
+  batch_size: 16
+
+  lr: 0.001
+  log_val_loss: False                   # Indicates whether to log validation loss every epoch. Could be resource intensive
+
+  base_dir: 'results'
+  run_name: 'run1'
+
+  kfold:
+    n_splits: 3
+    shuffle: True
+    random_state: 42
+

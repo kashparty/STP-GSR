@@ -1,0 +1,5 @@
+hydra:
+  version_base: '1.3.2'
+
+  run:
+    dir: "/vol/bitbucket/ps523/msc_project/"

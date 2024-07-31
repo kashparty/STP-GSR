@@ -1,0 +1,16 @@
+name: stp_gsr
+
+# Hyper-parameters for the TargetEdgeInitializer
+target_edge_initializer:
+  num_heads: 4                      # assert num_heads % n_target_nodes == 0
+  edge_dim: 1
+  dropout: 0.2
+  beta: False
+
+# Hyper-parameters for the DualGraphLearner
+dual_learner:
+  in_dim: 1                   
+  out_dim: 1
+  num_heads: 1                   
+  dropout: 0.2
+  beta: False

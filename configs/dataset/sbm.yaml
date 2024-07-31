@@ -1,0 +1,30 @@
+name: 'sbm'
+
+n_samples: 200
+
+# Number of blocks in the source and target graphs
+source_blocks: [20, 20, 20]
+target_blocks: [30, 20, 20, 30]
+
+# Probability of connection between blocks in the source graph
+source_P:
+  - [0.7, 0.2, 0.1]
+  - [0.2, 0.7, 0.1]
+  - [0.2, 0.1, 0.7]
+
+# Probability of connection between blocks in the target graph
+target_P:
+  - [0.6, 0.2, 0.1, 0.1]
+  - [0.2, 0.6, 0.1, 0.1]
+  - [0.1, 0.1, 0.6, 0.2]
+  - [0.1, 0.1, 0.2, 0.6]
+
+n_source_nodes: 60  # sum(source_blocks): Number of nodes in the source graph
+n_target_nodes: 100 # sum(target_blocks): Number of nodes in the target graph
+
+node_feat_init: 'adj'                   # Indicates how to initialize source node features. Options: 'adj', 'ones', 'random'
+                                        # 'adj': initialize each node with the corresponding row of the adjacency matrix
+                                        # 'ones': initialize each node with a vector of ones
+                                        # 'random': initialize each node with a vector of random values
+
+node_feat_dim: {n_source_nodes}        # Dimension of the source node features

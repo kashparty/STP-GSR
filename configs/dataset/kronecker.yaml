@@ -1,0 +1,18 @@
+name: 'kronecker'
+
+n_samples: 100
+
+source_init_matrix_size: 4              # Size of source initial matrix
+target_init_matrix_size: 5              # Size of target initial matrix
+
+n_iterations: 3                          # Number of times kronecker product is applied on the initial matrix to exponentially expand the graph
+
+n_source_nodes: 64                      # Should be (source_init_matrix_size ** n_iterations): Number of nodes in the source graph
+n_target_nodes: 125                     # Should be (target_init_matrix_size ** n_iterations): Number of nodes in the target graph
+
+node_feat_init: 'adj'                   # Indicates how to initialize source node features. Options: 'adj', 'ones', 'random'
+                                        # 'adj': initialize each node with the corresponding row of the adjacency matrix
+                                        # 'ones': initialize each node with a vector of ones
+                                        # 'random': initialize each node with a vector of random values
+
+node_feat_dim: {n_source_nodes}        # Dimension of the source node features

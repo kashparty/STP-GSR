@@ -1,0 +1,16 @@
+name: 'ba'
+
+n_samples: 100
+
+n_source_edges_per_node: 18             # Number of edges from each new node to existing nodes in the source graph
+n_target_edges_per_node: 40             # Number of edges from each new node to existing nodes in the target graph
+
+n_source_nodes: 160                     # Number of nodes in the source graph
+n_target_nodes: 268                     # Number of nodes in the target graph 
+
+node_feat_init: 'adj'                   # Indicates how to initialize source node features. Options: 'adj', 'ones', 'random'
+                                        # 'adj': initialize each node with the corresponding row of the adjacency matrix
+                                        # 'ones': initialize each node with a vector of ones
+                                        # 'random': initialize each node with a vector of random values
+
+node_feat_dim: {n_source_nodes}        # Dimension of the source node features
