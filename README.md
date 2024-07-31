@@ -5,6 +5,31 @@ This repository provides the official implementation of our STP-GSR model accept
 *Our STP-GSR model reformulates an edge regression task into a node regression task using dual (line) graph construction. This helps our model better preserve topology for brain graph super-resolution which is crucial to correctly identify onset/presence of neurodegenerative diseases like Alzheimer's and Parkinson's.*
 ![](model.png)
 
+Our code is structured as follows:
+
+```
+.
+├── configs
+│   ├── dataset
+│   │   ├── ba.yaml
+│   │   ├── er.yaml
+│   │   ├── kronecker.yaml
+│   │   └── sbm.yaml
+│   ├── experiment.yaml
+│   ├── hydra.yaml
+│   └── model
+│       └── stp_gsr.yaml
+├── main.py
+└── src
+    ├── dataset.py
+    ├── dual_graph_utils.py
+    ├── matrix_vectorizer.py
+    ├── models
+    │   └── stp_gsr.py
+    ├── plot_utils.py
+    └── train.py
+```
+
 ## Installation
 
 Step 1: Create a python virtual environment (here, we name it `stp_gsr`):
