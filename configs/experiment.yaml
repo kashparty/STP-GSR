@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - dataset: sbm
+  - dataset: train
   - model: stp_gsr
 
 experiment:
