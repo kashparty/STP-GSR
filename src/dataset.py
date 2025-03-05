@@ -65,8 +65,8 @@ def load_dataset(config):
         source_vectorized = np.genfromtxt("lr_train.csv", delimiter=",", skip_header=1)
         target_vectorized = np.genfromtxt("hr_train.csv", delimiter=",", skip_header=1)
 
-        source_mat_all = [MatrixVectorizer.anti_vectorize(source_vectorized, 160)]
-        target_mat_all = [MatrixVectorizer.anti_vectorize(target_vectorized, 268)]
+        source_mat_all = [MatrixVectorizer.anti_vectorize(A, 160) for A in source_vectorized]
+        target_mat_all = [MatrixVectorizer.anti_vectorize(A, 268) for A in target_vectorized]
 
     else:
         raise ValueError(f"Unsupported dataset type: {config.dataset.name}")
