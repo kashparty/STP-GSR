@@ -3,6 +3,7 @@ import numpy as np
 import networkx as nx
 from functools import partial
 from torch_geometric.data import Data
+from src.matrix_vectorizer import MatrixVectorizer
 
 
 def load_dataset(config):
@@ -58,6 +59,14 @@ def load_dataset(config):
 
         source_mat_all = [create_sbm_graph(source_blocks, source_P) for _ in range(n_samples)]
         target_mat_all = [create_sbm_graph(target_blocks, target_P) for _ in range(n_samples)]
+    
+    # Generate training graphs
+    elif config.dataset.name == "train":
+        source_vectorized = np.genfromtxt("lr_train.csv", delimiter=",", skip_header=1)
+        target_vectorized = np.genfromtxt("hr_train.csv", delimiter=",", skip_header=1)
+
+        source_mat_all = [MatrixVectorizer.anti_vectorize(source_vectorized, 160)]
+        target_mat_all = [MatrixVectorizer.anti_vectorize(target_vectorized, 268)]
 
     else:
         raise ValueError(f"Unsupported dataset type: {config.dataset.name}")
