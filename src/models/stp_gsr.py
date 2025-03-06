@@ -308,7 +308,7 @@ class STPGSR(nn.Module):
         dual_edge_index, _ = create_dual_graph(target_edge_init_sq)
 
         # Fetch and reshape upper triangular part to get dual graph's node feature matrix
-        target_edge_init = torch.masked_select(target_edge_init, self.ut_mask).view(-1, 1)
+        target_edge_init = torch.masked_select(target_edge_init_sq, self.ut_mask).view(-1, 1)
 
         # Update target edges in the dual space 
         dual_pred_x = self.dual_learner(target_edge_init, dual_edge_index)
