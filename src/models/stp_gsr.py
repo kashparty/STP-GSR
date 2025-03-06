@@ -35,18 +35,18 @@ class TargetEdgeInitializer(nn.Module):
         super().__init__()
         assert n_target_nodes % num_heads == 0
 
-        # self.conv1 = TransformerConv(n_source_nodes, n_target_nodes // num_heads,
-        #                              heads=num_heads, edge_dim=edge_dim,
-        #                              dropout=dropout, beta=beta)
-        ks = [0.9, 0.7, 0.6, 0.5]
-        self.gsrnet = GSRNet(ks, 160, 268, 320)
+        self.conv1 = TransformerConv(n_source_nodes, n_target_nodes // num_heads,
+                                     heads=num_heads, edge_dim=edge_dim,
+                                     dropout=dropout, beta=beta)
+        # ks = [0.9, 0.7, 0.6, 0.5]
+        # self.gsrnet = GSRNet(ks, 160, 268, 320)
         self.bn1 = GraphNorm(n_target_nodes)
 
     def forward(self, data):
         x, edge_index, edge_attr = data.x, data.pos_edge_index, data.edge_attr
 
         # Update node embeddings for the source graph
-        x, _, _, _ = self.gsrnet(x)
+        x = self.conv1(x, edge_index, edge_attr)
         x = self.bn1(x)
         x = F.relu(x)
 
