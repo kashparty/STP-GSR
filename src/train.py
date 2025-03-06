@@ -71,6 +71,8 @@ def train(config,
 
     # Initialize model, optmizer, and loss function
     model = load_model(config)
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+    print(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.experiment.lr)
     critereon = torch.nn.L1Loss()
 
@@ -115,23 +117,23 @@ def train(config,
                 # Log progress and do mini-batch gradient descent
                 if batch_counter % config.experiment.batch_size == 0 or batch_counter == len(source_train):
                     # Log gradients for this iteration
-                    plot_grad_flow(model.named_parameters(), step_counter, tmp_dir)
+                    # plot_grad_flow(model.named_parameters(), step_counter, tmp_dir)
 
 
-                    # Predicetd and target matrices for plotting
-                    pred_plot = model_pred.detach()
-                    target_plot = model_target.detach()
+                    # # Predicetd and target matrices for plotting
+                    # pred_plot = model_pred.detach()
+                    # target_plot = model_target.detach()
 
-                    # Convert edge features to adjacency matrices
-                    if config.model.name == 'stp_gsr':
-                        pred_plot = revert_dual(pred_plot, n_target_nodes) # (n_t, n_t)
-                        target_plot = revert_dual(target_plot, n_target_nodes) # (n_t, n_t)
+                    # # Convert edge features to adjacency matrices
+                    # if config.model.name == 'stp_gsr':
+                    #     pred_plot = revert_dual(pred_plot, n_target_nodes) # (n_t, n_t)
+                    #     target_plot = revert_dual(target_plot, n_target_nodes) # (n_t, n_t)
 
-                    pred_plot_m = pred_plot.cpu().numpy()
-                    target_plot_m = target_plot.cpu().numpy()
+                    # pred_plot_m = pred_plot.cpu().numpy()
+                    # target_plot_m = target_plot.cpu().numpy()
 
-                    # Log source, target, and predicted adjacency matrices for this iteration
-                    plot_adj_matrices(source_m, pred_plot_m, target_plot_m, step_counter, tmp_dir)
+                    # # Log source, target, and predicted adjacency matrices for this iteration
+                    # plot_adj_matrices(source_m, pred_plot_m, target_plot_m, step_counter, tmp_dir)
                     
                     # Perform gradient descent
                     optimizer.step()
