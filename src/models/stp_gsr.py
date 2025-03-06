@@ -58,11 +58,11 @@ class TargetEdgeInitializer(nn.Module):
         xt_max = torch.max(xt)
         xt = (xt - xt_min) / (xt_max - xt_min + 1e-8)  # Add epsilon to avoid division by zero
 
-        # Fetch and reshape upper triangular part to get dual graph's node feature matrix
-        ut_mask = torch.triu(torch.ones_like(xt), diagonal=1).bool()
-        x = torch.masked_select(xt, ut_mask).view(-1, 1)
+        # # Fetch and reshape upper triangular part to get dual graph's node feature matrix
+        # ut_mask = torch.triu(torch.ones_like(xt), diagonal=1).bool()
+        # x = torch.masked_select(xt, ut_mask).view(-1, 1)
 
-        return x
+        return xt
 
 
 class DualGraphLearner(nn.Module):
@@ -79,7 +79,7 @@ class DualGraphLearner(nn.Module):
         self.bn1 = GraphNorm(out_dim)
 
     def forward(self, x, edge_index):
-        # Update embeddings for the dual nodes/ primal edges
+        # Update embeddings for the dual nodes/primal edges
         x = self.conv1(x, edge_index)
         x = self.bn1(x)
         xt = F.relu(x)
@@ -304,7 +304,10 @@ class STPGSR(nn.Module):
     def forward(self, source_pyg, target_mat):
         # Initialize target edges
         target_edge_init = self.target_edge_initializer(source_pyg)
-        # Update target edges in the dual space 
+        target_edge_init_fixed = torch.where(target_edge_init == 0, 1e-10 * torch.ones_like(target_edge_init), target_edge_init)
+        dual_edge_index, _ = create_dual_graph(target_edge_init_fixed)
+        
+        # Update target edges in the dual space
         dual_pred_x = self.dual_learner(target_edge_init, self.dual_edge_index)
 
         # Convert target matrix into edge feature matrix
