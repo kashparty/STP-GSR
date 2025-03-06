@@ -160,15 +160,15 @@ def train(config,
         plot_losses(train_losses, 'train', res_dir)
         plot_losses(val_losses, 'val', res_dir)
 
-        # Create gif for gradient flows
-        gif_path = f"{res_dir}/gradient_flow.gif"
-        create_gif_grad(tmp_dir, gif_path)
-        print(f"Gradient flow saved as {gif_path}")
+        # # Create gif for gradient flows
+        # gif_path = f"{res_dir}/gradient_flow.gif"
+        # create_gif_grad(tmp_dir, gif_path)
+        # print(f"Gradient flow saved as {gif_path}")
 
-        # Create gif for training samples
-        gif_path = f"{res_dir}/train_samples.gif"
-        create_gif_adj(tmp_dir, gif_path)
-        print(f"Training samples saved as {gif_path}")
+        # # Create gif for training samples
+        # gif_path = f"{res_dir}/train_samples.gif"
+        # create_gif_adj(tmp_dir, gif_path)
+        # print(f"Training samples saved as {gif_path}")
 
         # Save model
         model_path = f"{res_dir}/model.pth"
