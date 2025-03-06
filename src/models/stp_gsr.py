@@ -292,7 +292,8 @@ class STPGSR(nn.Module):
                             beta=config.model.dual_learner.beta
         )
 
-        self.ut_mask = torch.triu(torch.ones((n_target_nodes, n_target_nodes)), diagonal=1).bool()
+        ut_mask = torch.triu(torch.ones((n_target_nodes, n_target_nodes)), diagonal=1).bool()
+        self.register_buffer("ut_mask", ut_mask)
 
 
     def forward(self, source_pyg, target_mat):
