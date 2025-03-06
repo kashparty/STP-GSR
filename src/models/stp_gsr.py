@@ -8,6 +8,7 @@ from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_ma
 
 
 def weight_variable_glorot(output_dim):
+
     input_dim = 268
     init_range = math.sqrt(6.0 / (input_dim + output_dim))
     initial = torch.rand((input_dim, output_dim)) * init_range * 2 - init_range
@@ -95,7 +96,6 @@ class GSRLayer(nn.Module):
 
     def __init__(self, hr_dim):
         super(GSRLayer, self).__init__()
-        print(f"Init GSRLayer with {hr_dim}")
         self.weights = weight_variable_glorot(hr_dim).type(torch.float32)
         self.weights = torch.nn.Parameter(data=self.weights, requires_grad=True)
 
