@@ -58,10 +58,6 @@ class TargetEdgeInitializer(nn.Module):
         xt_max = torch.max(xt)
         xt = (xt - xt_min) / (xt_max - xt_min + 1e-8)  # Add epsilon to avoid division by zero
 
-        # # Fetch and reshape upper triangular part to get dual graph's node feature matrix
-        # ut_mask = torch.triu(torch.ones_like(xt), diagonal=1).bool()
-        # x = torch.masked_select(xt, ut_mask).view(-1, 1)
-
         return xt
 
 
@@ -79,7 +75,7 @@ class DualGraphLearner(nn.Module):
         self.bn1 = GraphNorm(out_dim)
 
     def forward(self, x, edge_index):
-        # Update embeddings for the dual nodes/primal edges
+        # Update embeddings for the dual nodes/ primal edges
         x = self.conv1(x, edge_index)
         x = self.bn1(x)
         xt = F.relu(x)
@@ -296,19 +292,26 @@ class STPGSR(nn.Module):
                             beta=config.model.dual_learner.beta
         )
 
-        # Create dual graph domain: Assume a fully connected simple graph
-        fully_connected_mat = torch.ones((n_target_nodes, n_target_nodes), dtype=torch.float)   # (n_t, n_t)
-        self.dual_edge_index, _ = create_dual_graph(fully_connected_mat)    # (2, n_t*(n_t-1)/2), (n_t*(n_t-1)/2, 1)
+        self.ut_mask = torch.triu(torch.ones((n_target_nodes, n_target_nodes)), diagonal=1).bool()
 
 
     def forward(self, source_pyg, target_mat):
         # Initialize target edges
-        target_edge_init = self.target_edge_initializer(source_pyg)
-        target_edge_init_fixed = torch.where(target_edge_init == 0, 1e-10 * torch.ones_like(target_edge_init), target_edge_init)
-        dual_edge_index, _ = create_dual_graph(target_edge_init_fixed)
-        
-        # Update target edges in the dual space
-        dual_pred_x = self.dual_learner(target_edge_init, self.dual_edge_index)
+        target_edge_init_sq = self.target_edge_initializer(source_pyg)
+
+        # Create the dual graph, ensure no zeros to prevent edges being removed
+        target_edge_init_sq = torch.where(
+            target_edge_init_sq == 0,
+            1e-10 * torch.ones_like(target_edge_init_sq),
+            target_edge_init_sq
+        )
+        dual_edge_index, _ = create_dual_graph(target_edge_init_sq)
+
+        # Fetch and reshape upper triangular part to get dual graph's node feature matrix
+        target_edge_init = torch.masked_select(target_edge_init, self.ut_mask).view(-1, 1)
+
+        # Update target edges in the dual space 
+        dual_pred_x = self.dual_learner(target_edge_init, dual_edge_index)
 
         # Convert target matrix into edge feature matrix
         dual_target_x = create_dual_graph_feature_matrix(target_mat)
