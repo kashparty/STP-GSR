@@ -4,14 +4,14 @@ defaults:
   - model: stp_gsr
 
 experiment:
-  n_epochs: 60
+  n_epochs: 30
   batch_size: 16
 
-  lr: 0.001
+  lr: 0.005
   log_val_loss: False                   # Indicates whether to log validation loss every epoch. Could be resource intensive
 
   base_dir: 'results'
-  run_name: 'run1'
+  run_name: 'run4'
 
   kfold:
     n_splits: 3
