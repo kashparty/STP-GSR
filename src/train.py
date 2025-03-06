@@ -27,6 +27,7 @@ def load_model(config):
     
 
 def eval(config, model, source_data, target_data, critereon):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     n_target_nodes = config.dataset.n_target_nodes  # n_t
     
     model.eval()
@@ -37,8 +38,8 @@ def eval(config, model, source_data, target_data, critereon):
 
     with torch.no_grad():
         for source, target in zip(source_data, target_data):
-            source_g = source['pyg']    
-            target_m = target['mat']    # (n_t, n_t)
+            source_g = source['pyg'].to(device)    
+            target_m = target['mat'].to(device)    # (n_t, n_t)
 
             model_pred, model_target = model(source_g, target_m) 
 
@@ -67,10 +68,11 @@ def train(config,
           source_data_val, 
           target_data_val,
           res_dir):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     n_target_nodes = config.dataset.n_target_nodes  # n_t
 
     # Initialize model, optmizer, and loss function
-    model = load_model(config)
+    model = load_model(config).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
     print(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.experiment.lr)
@@ -96,9 +98,9 @@ def train(config,
             # Iteratively train on each sample. 
             # (Using single sample training and gradient accummulation as the baseline IMANGraphNet model is memory intensive)
             for source, target in tqdm(zip(source_train, target_train), total=len(source_train)):
-                source_g = source['pyg']
-                source_m = source['mat']    # (n_s, n_s)
-                target_m = target['mat']    # (n_t, n_t)
+                source_g = source['pyg'].to(device)
+                source_m = source['mat'].to(device)    # (n_s, n_s)
+                target_m = target['mat'].to(device)    # (n_t, n_t)
 
                 # We pass the target matrix to the forward pass for consistency:
                 # For our STP-GSR model, its easier to directly compare dual graph features of shape (n_t*(n_t-1)/2, 1)
