@@ -8,7 +8,7 @@ def create_dual_graph(adjacency_matrix):
     n = adjacency_matrix.shape[0]
 
     # Find all potential edges in the upper triangular part
-    row, col = torch.triu_indices(n, n, offset=1)
+    row, col = torch.triu_indices(n, n, offset=1, device=adjacency_matrix.device)
     all_edges = torch.stack([row, col], dim=1)
     actual_edges_mask = adjacency_matrix[row, col].nonzero().view(-1)
 
@@ -60,7 +60,7 @@ def create_dual_graph_feature_matrix(adjacency_matrix):
     n = adjacency_matrix.shape[0]
 
     # Find all potential edges in the upper triangular part
-    row, col = torch.triu_indices(n, n, offset=1)
+    row, col = torch.triu_indices(n, n, offset=1, device=adjacency_matrix.device)
     actual_edges_mask = adjacency_matrix[row, col].nonzero().view(-1)
 
     # Create node feature matrix for the dual graph
