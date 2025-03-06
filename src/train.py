@@ -17,11 +17,13 @@ from src.plot_utils import (
 from src.dual_graph_utils import revert_dual
 
 
+device = torch.device("cuda"  if torch.cuda.is_available() else "cpu") 
+
 def load_model(config):
     if config.model.name == 'stp_gsr':
-        return STPGSR(config)
+        return STPGSR(config, device=device).to(device)
     elif config.model.name == 'direct_sr':
-        return DirectSR(config)
+        return DirectSR(config).to(device)
     else:
         raise ValueError(f"Unsupported model type: {config.model.name}")
     
@@ -37,8 +39,8 @@ def eval(config, model, source_data, target_data, critereon):
 
     with torch.no_grad():
         for source, target in zip(source_data, target_data):
-            source_g = source['pyg']    
-            target_m = target['mat']    # (n_t, n_t)
+            source_g = source['pyg'].to(device)    
+            target_m = target['mat'].to(device)    # (n_t, n_t)
 
             model_pred, model_target = model(source_g, target_m) 
 
@@ -96,9 +98,9 @@ def train(config,
             # Iteratively train on each sample. 
             # (Using single sample training and gradient accummulation as the baseline IMANGraphNet model is memory intensive)
             for source, target in tqdm(zip(source_train, target_train), total=len(source_train)):
-                source_g = source['pyg']
+                source_g = source['pyg'].to(device)
                 source_m = source['mat']    # (n_s, n_s)
-                target_m = target['mat']    # (n_t, n_t)
+                target_m = target['mat'].to(device)    # (n_t, n_t)
 
                 # We pass the target matrix to the forward pass for consistency:
                 # For our STP-GSR model, its easier to directly compare dual graph features of shape (n_t*(n_t-1)/2, 1)
