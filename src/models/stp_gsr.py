@@ -8,8 +8,7 @@ from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_ma
 
 
 def weight_variable_glorot(output_dim):
-
-    input_dim = output_dim
+    input_dim = 268
     init_range = math.sqrt(6.0 / (input_dim + output_dim))
     initial = torch.rand((input_dim, output_dim)) * init_range * 2 - init_range
 
@@ -46,7 +45,7 @@ class TargetEdgeInitializer(nn.Module):
         x, edge_index, edge_attr = data.x, data.pos_edge_index, data.edge_attr
 
         # Update node embeddings for the source graph
-        x = self.gsrnet(x)
+        x, _, _, _ = self.gsrnet(x)
         x = self.bn1(x)
         x = F.relu(x)
 
@@ -96,7 +95,7 @@ class GSRLayer(nn.Module):
 
     def __init__(self, hr_dim):
         super(GSRLayer, self).__init__()
-
+        print(f"Init GSRLayer with {hr_dim}")
         self.weights = weight_variable_glorot(hr_dim).type(torch.float32)
         self.weights = torch.nn.Parameter(data=self.weights, requires_grad=True)
 
@@ -117,7 +116,7 @@ class GSRLayer(nn.Module):
         adj = normalize_adj_torch(self.f_d)
         X = torch.mm(adj, adj.t())
         X = (X + X.t()) / 2
-        idx = torch.eye(320, dtype=torch.bool)
+        idx = torch.eye(268, dtype=torch.bool)
         X[idx] = 1
         return adj, torch.abs(X)
 
