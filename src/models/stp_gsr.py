@@ -3,8 +3,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import TransformerConv, GraphNorm
-
+import networkx as nx
 from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_matrix
+from src.matrix_vectorizer import MatrixVectorizer
+import numpy as np
+from itertools import product
 
 
 def weight_variable_glorot(output_dim):
@@ -271,7 +274,7 @@ class GSRNet(nn.Module):
 
 
 class STPGSR(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, device="cpu"):
         super().__init__()
         n_source_nodes = config.dataset.n_source_nodes
         n_target_nodes = config.dataset.n_target_nodes
@@ -295,7 +298,6 @@ class STPGSR(nn.Module):
         ut_mask = torch.triu(torch.ones((n_target_nodes, n_target_nodes)), diagonal=1).bool()
         self.register_buffer("ut_mask", ut_mask)
 
-
     def forward(self, source_pyg, target_mat):
         # Initialize target edges
         target_edge_init_sq = self.target_edge_initializer(source_pyg)
@@ -310,11 +312,18 @@ class STPGSR(nn.Module):
 
         # Fetch and reshape upper triangular part to get dual graph's node feature matrix
         target_edge_init = torch.masked_select(target_edge_init_sq, self.ut_mask).view(-1, 1)
+        
+        G = nx.from_numpy_array(target_edge_init_sq.detach().cpu().numpy())
+        betweenness_nodewise = torch.tensor(np.array(list(nx.edge_betweenness_centrality(G).values()))).unsqueeze(-1).to(target_edge_init_sq.device)
+        # TODO degree centrality for u degree centrality for v, average toegether per edge.
+        degree_centrality_node = list(nx.degree_centrality(G).values())
+        node_centrality_pairs = product(enumerate(degree_centrality_node), enumerate(degree_centrality_node))
+        edge_centrality = [(i_centrality + j_centrality) / 2 for ((i_idx, i_centrality), (j_idx, j_centrality)) in node_centrality_pairs if i_idx > j_idx]
+        edge_centrality = torch.tensor(np.array(edge_centrality)).unsqueeze(-1).to(target_edge_init_sq.device)
+
+        edge_features = torch.cat([target_edge_init, betweenness_nodewise, edge_centrality], dim=1).to(torch.float).to(target_edge_init_adj.device)
 
         # Update target edges in the dual space 
         dual_pred_x = self.dual_learner(target_edge_init, dual_edge_index)
-
-        # Convert target matrix into edge feature matrix
-        dual_target_x = create_dual_graph_feature_matrix(target_mat)
 
         return dual_pred_x, dual_target_x

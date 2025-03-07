@@ -17,11 +17,13 @@ from src.plot_utils import (
 from src.dual_graph_utils import revert_dual
 
 
+device = torch.device("cuda"  if torch.cuda.is_available() else "cpu") 
+
 def load_model(config):
     if config.model.name == 'stp_gsr':
-        return STPGSR(config)
+        return STPGSR(config, device=device).to(device)
     elif config.model.name == 'direct_sr':
-        return DirectSR(config)
+        return DirectSR(config).to(device)
     else:
         raise ValueError(f"Unsupported model type: {config.model.name}")
     
