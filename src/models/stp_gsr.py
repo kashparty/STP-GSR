@@ -295,49 +295,35 @@ class STPGSR(nn.Module):
                             beta=config.model.dual_learner.beta
         )
 
-        # Create dual graph domain: Assume a fully connected simple graph
-        fully_connected_mat = torch.ones((n_target_nodes, n_target_nodes), dtype=torch.float)   # (n_t, n_t)
-        dual_edge_index, _ = create_dual_graph(fully_connected_mat)    # (2, n_t*(n_t-1)/2), (n_t*(n_t-1)/2, 1)
-        self.dual_edge_index = dual_edge_index.to(device)
+        ut_mask = torch.triu(torch.ones((n_target_nodes, n_target_nodes)), diagonal=1).bool()
+        self.register_buffer("ut_mask", ut_mask)
 
     def forward(self, source_pyg, target_mat):
         # Initialize target edges
-        target_edge_init_adj = self.target_edge_initializer(source_pyg)
+        target_edge_init_sq = self.target_edge_initializer(source_pyg)
 
-        target_edge_init_adj_cpu = target_edge_init_adj.detach().cpu().numpy()
+        # Create the dual graph, ensure no zeros to prevent edges being removed
+        target_edge_init_sq = torch.where(
+            target_edge_init_sq == 0,
+            1e-10 * torch.ones_like(target_edge_init_sq),
+            target_edge_init_sq
+        )
+        dual_edge_index, _ = create_dual_graph(target_edge_init_sq)
 
-        G = nx.Graph()
-        weighted_edges = []
-
-        for u in range(len(target_edge_init_adj_cpu[0])):
-            for v in range(len(target_edge_init_adj_cpu[1])):
-                # skip self connections
-                if u == v:
-                    continue
-                # add weighted edge manually as nx discards edges of weight 0
-                w = target_edge_init_adj_cpu[u, v]
-                weighted_edges.append((u, v, w))
-
-        G.add_weighted_edges_from(weighted_edges)
-        betweenness_nodewise = torch.tensor(np.array(list(nx.edge_betweenness_centrality(G).values()))).unsqueeze(-1).to(target_edge_init_adj.device)
+        # Fetch and reshape upper triangular part to get dual graph's node feature matrix
+        target_edge_init = torch.masked_select(target_edge_init_sq, self.ut_mask).view(-1, 1)
+        
+        G = nx.from_numpy_array(target_edge_init_sq.detach().cpu().numpy())
+        betweenness_nodewise = torch.tensor(np.array(list(nx.edge_betweenness_centrality(G).values()))).unsqueeze(-1).to(target_edge_init_sq.device)
         # TODO degree centrality for u degree centrality for v, average toegether per edge.
         degree_centrality_node = list(nx.degree_centrality(G).values())
         node_centrality_pairs = product(enumerate(degree_centrality_node), enumerate(degree_centrality_node))
         edge_centrality = [(i_centrality + j_centrality) / 2 for ((i_idx, i_centrality), (j_idx, j_centrality)) in node_centrality_pairs if i_idx > j_idx]
-        edge_centrality = torch.tensor(np.array(edge_centrality)).unsqueeze(-1).to(target_edge_init_adj.device)
-        # current_betweeness_nodewise = torch.tensor(np.array(list(nx.edge_current_flow_betweenness_centrality(G).values()))).unsqueeze(-1).to(target_edge_init_adj.device)
-        # print(4)
-        # Fetch and reshape upper triangular part of feature bector to later get dual graph's node feature matrix
-        ut_mask = torch.triu(torch.ones_like(target_edge_init_adj), diagonal=1).bool()
-        target_edge_init_vector = torch.masked_select(target_edge_init_adj, ut_mask).view(-1, 1)
-    
-        edge_features = torch.cat([target_edge_init_vector, betweenness_nodewise, edge_centrality], dim=1).to(torch.float).to(target_edge_init_adj.device)
+        edge_centrality = torch.tensor(np.array(edge_centrality)).unsqueeze(-1).to(target_edge_init_sq.device)
 
-        dual_pred_x = self.dual_learner(edge_features, self.dual_edge_index)
+        edge_features = torch.cat([target_edge_init, betweenness_nodewise, edge_centrality], dim=1).to(torch.float).to(target_edge_init_adj.device)
 
-        # Convert target matrix into edge feature matrix
-        if target_mat is not None:
-            dual_target_x = create_dual_graph_feature_matrix(target_mat.detach().cpu()).to(target_edge_init_adj.device)
-        else:
-            dual_target_x = None
+        # Update target edges in the dual space 
+        dual_pred_x = self.dual_learner(target_edge_init, dual_edge_index)
+
         return dual_pred_x, dual_target_x
