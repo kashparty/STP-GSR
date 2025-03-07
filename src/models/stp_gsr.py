@@ -313,17 +313,34 @@ class STPGSR(nn.Module):
         # Fetch and reshape upper triangular part to get dual graph's node feature matrix
         target_edge_init = torch.masked_select(target_edge_init_sq, self.ut_mask).view(-1, 1)
         
-        G = nx.from_numpy_array(target_edge_init_sq.detach().cpu().numpy())
+        target_edge_init_sq_cpu = target_edge_init_sq.detach().cpu().numpy()
+
+        G = nx.Graph()
+        weighted_edges = []
+
+        for u in range(len(target_edge_init_sq_cpu[0])):
+            for v in range(len(target_edge_init_sq_cpu[1])):
+                # skip self connections
+                if u == v:
+                    continue
+                # add weighted edge manually as nx discards edges of weight 0
+                w = target_edge_init_sq_cpu[u, v]
+                weighted_edges.append((u, v, w))
+
+        G.add_weighted_edges_from(weighted_edges)
+
         betweenness_nodewise = torch.tensor(np.array(list(nx.edge_betweenness_centrality(G).values()))).unsqueeze(-1).to(target_edge_init_sq.device)
-        # TODO degree centrality for u degree centrality for v, average toegether per edge.
+
         degree_centrality_node = list(nx.degree_centrality(G).values())
         node_centrality_pairs = product(enumerate(degree_centrality_node), enumerate(degree_centrality_node))
         edge_centrality = [(i_centrality + j_centrality) / 2 for ((i_idx, i_centrality), (j_idx, j_centrality)) in node_centrality_pairs if i_idx > j_idx]
         edge_centrality = torch.tensor(np.array(edge_centrality)).unsqueeze(-1).to(target_edge_init_sq.device)
 
-        edge_features = torch.cat([target_edge_init, betweenness_nodewise, edge_centrality], dim=1).to(torch.float).to(target_edge_init_adj.device)
+        edge_features = torch.cat([target_edge_init, betweenness_nodewise, edge_centrality], dim=1).to(torch.float).to(target_edge_init_sq.device)
 
         # Update target edges in the dual space 
-        dual_pred_x = self.dual_learner(target_edge_init, dual_edge_index)
+        dual_pred_x = self.dual_learner(edge_features, dual_edge_index)
+
+        dual_target_x = create_dual_graph_feature_matrix(target_mat)
 
         return dual_pred_x, dual_target_x
