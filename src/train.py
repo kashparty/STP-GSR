@@ -221,7 +221,9 @@ def eval(config, model, source_data, target_data, critereon_L1):
             target_m = target['mat'].to(device)
 
             model_pred, model_target, _, _ = model(source_g, target_m) 
-            eval_output.append(model_pred.cpu().numpy()) 
+            pred_m = revert_dual(model_pred, n_target_nodes)    # (n_t, n_t)
+            pred_m = pred_m.cpu().numpy()
+            eval_output.append(pred_m)
 
             t_loss = critereon_L1(model_pred, model_target)
             eval_loss.append(t_loss)
