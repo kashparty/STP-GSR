@@ -61,7 +61,7 @@ def main(config):
                                       train_output['model'], 
                                       source_data_val, 
                                       target_data_val, 
-                                      train_output['critereon'])
+                                      train_output['criterion_L1'])
 
         # Final evaluation loss for this fold
         print(f"Final Validation Loss (Target): {eval_loss}")

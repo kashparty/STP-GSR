@@ -79,6 +79,7 @@ class DualGraphLearner(nn.Module):
 
     def forward(self, x, edge_index):
         # Update embeddings for the dual nodes/ primal edges
+        edge_index = edge_index.to(x.device)
         x = self.conv1(x, edge_index)
         x = self.bn1(x)
         xt = F.relu(x)
@@ -295,6 +296,8 @@ class STPGSR(nn.Module):
                             beta=config.model.dual_learner.beta
         )
 
+        self.discriminator = Discriminator(n_target_nodes)
+
         ut_mask = torch.triu(torch.ones((n_target_nodes, n_target_nodes)), diagonal=1).bool()
         self.register_buffer("ut_mask", ut_mask)
 
@@ -343,4 +346,54 @@ class STPGSR(nn.Module):
 
         dual_target_x = create_dual_graph_feature_matrix(target_mat)
 
-        return dual_pred_x, dual_target_x
+        # Ensure correct shape for Discriminator input
+        n_target_nodes = 268  # This should match your dataset's target nodes
+
+        pred_graph_flat = torch.zeros((n_target_nodes, n_target_nodes), device=dual_pred_x.device)
+        real_graph_flat = torch.zeros((n_target_nodes, n_target_nodes), device=dual_target_x.device)
+
+        triu_indices = torch.triu_indices(n_target_nodes, n_target_nodes, offset=1)
+
+        pred_graph_flat[triu_indices[0], triu_indices[1]] = dual_pred_x.squeeze()
+        real_graph_flat[triu_indices[0], triu_indices[1]] = dual_target_x.squeeze()
+
+        pred_graph_flat = pred_graph_flat + pred_graph_flat.T
+        real_graph_flat = real_graph_flat + real_graph_flat.T
+
+        torch.diagonal(pred_graph_flat).fill_(1)
+        torch.diagonal(real_graph_flat).fill_(1)
+
+        # Get Discriminator Scores
+        real_labels = self.discriminator(real_graph_flat)
+        fake_labels = self.discriminator(pred_graph_flat)
+
+        return dual_pred_x, dual_target_x, fake_labels, real_labels
+
+
+class Dense(nn.Module):
+    """Fully connected (Dense) layer with trainable weights"""
+    def __init__(self, n1, n2, mean=0, std=0.01):
+        super(Dense, self).__init__()
+        self.weights = torch.nn.Parameter(torch.FloatTensor(n1, n2))
+        nn.init.normal_(self.weights, mean=mean, std=std)
+
+    def forward(self, x):
+        return torch.mm(x, self.weights)
+
+
+class Discriminator(nn.Module):
+    """Discriminator network for adversarial training"""
+    def __init__(self, hr_dim, mean_dense=0, std_dense=0.01):
+        super(Discriminator, self).__init__()
+        self.dense_1 = Dense(hr_dim, hr_dim, mean_dense, std_dense)
+        self.relu_1 = nn.ReLU(inplace=True)
+        self.dense_2 = Dense(hr_dim, hr_dim, mean_dense, std_dense)
+        self.relu_2 = nn.ReLU(inplace=True)
+        self.dense_3 = Dense(hr_dim, 1, mean_dense, std_dense)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, inputs):
+        dc_den1 = self.relu_1(self.dense_1(inputs))
+        dc_den2 = self.relu_2(self.dense_2(dc_den1))
+        output = self.sigmoid(self.dense_3(dc_den2))
+        return torch.abs(output)
