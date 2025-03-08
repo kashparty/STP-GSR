@@ -344,18 +344,22 @@ class STPGSR(nn.Module):
         # Update target edges in the dual space 
         dual_pred_x = self.dual_learner(edge_features, dual_edge_index)
 
-        dual_target_x = create_dual_graph_feature_matrix(target_mat)
-
+        if target_mat is not None:
+            dual_target_x = create_dual_graph_feature_matrix(target_mat)
+        else:
+            dual_target_x = None
         # Ensure correct shape for Discriminator input
         n_target_nodes = 268  # This should match your dataset's target nodes
 
         pred_graph_flat = torch.zeros((n_target_nodes, n_target_nodes), device=dual_pred_x.device)
-        real_graph_flat = torch.zeros((n_target_nodes, n_target_nodes), device=dual_target_x.device)
+        real_graph_flat = torch.zeros((n_target_nodes, n_target_nodes), device=dual_target_x.device) if dual_target_x is not None else None
 
         triu_indices = torch.triu_indices(n_target_nodes, n_target_nodes, offset=1)
 
         pred_graph_flat[triu_indices[0], triu_indices[1]] = dual_pred_x.squeeze()
-        real_graph_flat[triu_indices[0], triu_indices[1]] = dual_target_x.squeeze()
+
+        if dual_target_x is not None:
+            real_graph_flat[triu_indices[0], triu_indices[1]] = dual_target_x.squeeze()
 
         pred_graph_flat = pred_graph_flat + pred_graph_flat.T
         real_graph_flat = real_graph_flat + real_graph_flat.T
