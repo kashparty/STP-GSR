@@ -197,11 +197,13 @@ from src.dual_graph_utils import revert_dual
 from src.models.stp_gsr import Discriminator
 
 
+device = torch.device("cuda"  if torch.cuda.is_available() else "cpu") 
+
 def load_model(config):
     if config.model.name == 'stp_gsr':
-        return STPGSR(config)
+        return STPGSR(config, device=device).to(device)
     elif config.model.name == 'direct_sr':
-        return DirectSR(config)
+        return DirectSR(config).to(device)
     else:
         raise ValueError(f"Unsupported model type: {config.model.name}")
 
@@ -219,10 +221,15 @@ def eval(config, model, source_data, target_data, critereon_L1):
         for source, target in zip(source_data, target_data):
             source_g = source['pyg'].to(device)
             target_m = target['mat'].to(device)
-
+            
             model_pred, model_target, _, _ = model(source_g, target_m) 
-            pred_m = revert_dual(model_pred, n_target_nodes)    # (n_t, n_t)
-            pred_m = pred_m.cpu().numpy()
+
+            if config.model.name == 'stp_gsr':
+                pred_m = revert_dual(model_pred, n_target_nodes)    # (n_t, n_t)
+                pred_m = pred_m.cpu().numpy()
+            else:
+                pred_m = model_pred.cpu().numpy()
+
             eval_output.append(pred_m)
 
             t_loss = critereon_L1(model_pred, model_target)
@@ -240,10 +247,10 @@ def train(config,
           source_data_val, 
           target_data_val,
           res_dir):
-    n_target_nodes = config.dataset.n_target_nodes  
 
-    # Initialize model
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    n_target_nodes = config.dataset.n_target_nodes  # n_t
+
     model = load_model(config).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
     print(model)
@@ -273,7 +280,8 @@ def train(config,
 
         for source, target in tqdm(zip(source_train, target_train), total=len(source_train)):
             source_g = source['pyg'].to(device)
-            target_m = target['mat'].to(device)
+            source_m = source['mat'].to(device)    # (n_s, n_s)
+            target_m = target['mat'].to(device)    # (n_t, n_t)
 
             # -----------------------------------
             # Train Discriminator

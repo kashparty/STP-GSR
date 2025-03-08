@@ -3,8 +3,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import TransformerConv, GraphNorm
-
+import networkx as nx
 from src.dual_graph_utils import create_dual_graph, create_dual_graph_feature_matrix
+from src.matrix_vectorizer import MatrixVectorizer
+import numpy as np
+from itertools import product
 
 
 def weight_variable_glorot(output_dim):
@@ -58,11 +61,7 @@ class TargetEdgeInitializer(nn.Module):
         xt_max = torch.max(xt)
         xt = (xt - xt_min) / (xt_max - xt_min + 1e-8)  # Add epsilon to avoid division by zero
 
-        # Fetch and reshape upper triangular part to get dual graph's node feature matrix
-        ut_mask = torch.triu(torch.ones_like(xt), diagonal=1).bool()
-        x = torch.masked_select(xt, ut_mask).view(-1, 1)
-
-        return x
+        return xt
 
 
 class DualGraphLearner(nn.Module):
@@ -276,7 +275,7 @@ class GSRNet(nn.Module):
 
 
 class STPGSR(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, device="cpu"):
         super().__init__()
         n_source_nodes = config.dataset.n_source_nodes
         n_target_nodes = config.dataset.n_target_nodes
@@ -299,18 +298,52 @@ class STPGSR(nn.Module):
 
         self.discriminator = Discriminator(n_target_nodes)
 
-        # Create dual graph domain: Assume a fully connected simple graph
-        fully_connected_mat = torch.ones((n_target_nodes, n_target_nodes), dtype=torch.float)   # (n_t, n_t)
-        self.dual_edge_index, _ = create_dual_graph(fully_connected_mat)    # (2, n_t*(n_t-1)/2), (n_t*(n_t-1)/2, 1)
-
+        ut_mask = torch.triu(torch.ones((n_target_nodes, n_target_nodes)), diagonal=1).bool()
+        self.register_buffer("ut_mask", ut_mask)
 
     def forward(self, source_pyg, target_mat):
         # Initialize target edges
-        target_edge_init = self.target_edge_initializer(source_pyg)
-        # Update target edges in the dual space 
-        dual_pred_x = self.dual_learner(target_edge_init, self.dual_edge_index)
+        target_edge_init_sq = self.target_edge_initializer(source_pyg)
 
-        # Convert target matrix into edge feature matrix
+        # Create the dual graph, ensure no zeros to prevent edges being removed
+        target_edge_init_sq = torch.where(
+            target_edge_init_sq == 0,
+            1e-10 * torch.ones_like(target_edge_init_sq),
+            target_edge_init_sq
+        )
+        dual_edge_index, _ = create_dual_graph(target_edge_init_sq)
+
+        # Fetch and reshape upper triangular part to get dual graph's node feature matrix
+        target_edge_init = torch.masked_select(target_edge_init_sq, self.ut_mask).view(-1, 1)
+        
+        target_edge_init_sq_cpu = target_edge_init_sq.detach().cpu().numpy()
+
+        G = nx.Graph()
+        weighted_edges = []
+
+        for u in range(len(target_edge_init_sq_cpu[0])):
+            for v in range(len(target_edge_init_sq_cpu[1])):
+                # skip self connections
+                if u == v:
+                    continue
+                # add weighted edge manually as nx discards edges of weight 0
+                w = target_edge_init_sq_cpu[u, v]
+                weighted_edges.append((u, v, w))
+
+        G.add_weighted_edges_from(weighted_edges)
+
+        betweenness_nodewise = torch.tensor(np.array(list(nx.edge_betweenness_centrality(G).values()))).unsqueeze(-1).to(target_edge_init_sq.device)
+
+        degree_centrality_node = list(nx.degree_centrality(G).values())
+        node_centrality_pairs = product(enumerate(degree_centrality_node), enumerate(degree_centrality_node))
+        edge_centrality = [(i_centrality + j_centrality) / 2 for ((i_idx, i_centrality), (j_idx, j_centrality)) in node_centrality_pairs if i_idx > j_idx]
+        edge_centrality = torch.tensor(np.array(edge_centrality)).unsqueeze(-1).to(target_edge_init_sq.device)
+
+        edge_features = torch.cat([target_edge_init, betweenness_nodewise, edge_centrality], dim=1).to(torch.float).to(target_edge_init_sq.device)
+
+        # Update target edges in the dual space 
+        dual_pred_x = self.dual_learner(edge_features, dual_edge_index)
+
         dual_target_x = create_dual_graph_feature_matrix(target_mat)
 
         # Ensure correct shape for Discriminator input
@@ -335,8 +368,6 @@ class STPGSR(nn.Module):
         fake_labels = self.discriminator(pred_graph_flat)
 
         return dual_pred_x, dual_target_x, fake_labels, real_labels
-
-        # return dual_pred_x, dual_target_x
 
 
 class Dense(nn.Module):
